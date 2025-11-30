@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 import time
 import random
 
@@ -202,9 +203,10 @@ if run_sim:
             with c_chart:
                 # Latency Strip Chart
                 chart_data = pd.DataFrame({
-                    'Time': range(i), 
-                    'Latency (ms)': [total_latency_ms + np.random.uniform(-0.5, 0.5) for _ in range(i)]
+                    'Time': range(i + 1), # Fix: range must match data length
+                    'Latency (ms)': [total_latency_ms + np.random.uniform(-0.5, 0.5) for _ in range(i + 1)]
                 })
+                # Using st.line_chart which handles dataframes gracefully
                 st.line_chart(chart_data, y='Latency (ms)', height=200)
                 
                 # Critical Warning
@@ -235,6 +237,7 @@ else:
         st.markdown("### 🏗️ SYSTEM ARCHITECTURE BLUEPRINT")
         st.caption("Visualizing the C-Based Threading Model (Section III-B)")
         
+        # Replaced static image with Graphviz chart to prevent MediaFileStorageError
         st.graphviz_chart('''
             digraph {
                 rankdir=LR;
@@ -330,22 +333,30 @@ with tab3:
     **The Pi Zero Test:** Creating 100,000 Content Instances (CIN) on a device with 512MB RAM.
     TinyOneM2M uses only **14.7 MB** of RAM for 100k resources, leaving plenty of room for applications.
     """)
-    # Data from Table IX
-    resources = [10000, 50000, 100000]
-    ram_usage = [5.6, 9.6, 14.7] # MB
     
-    fig_ram = px.area(
-        x=resources, y=ram_usage, 
-        labels={'x':'Resources Created', 'y':'RAM Usage (MB)'},
+    # Initialize variables explicitly to avoid NameError if cells run out of order
+    resources_list = [10000, 50000, 100000]
+    ram_usage_list = [5.6, 9.6, 14.7] # MB (from Table IX)
+    
+    # Create DataFrame for px.area to be absolutely safe
+    df_ram = pd.DataFrame({
+        'Resources Created': resources_list,
+        'RAM Usage (MB)': ram_usage_list
+    })
+    
+    fig_ram_area = px.area(
+        df_ram,
+        x='Resources Created', 
+        y='RAM Usage (MB)', 
         color_discrete_sequence=['#10b981']
     )
-    fig_ram.update_layout(
+    fig_ram_area.update_layout(
         title="RAM Usage Growth (Linear & Efficient)",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font_color="white"
     )
-    st.plotly_chart(fig_ram, use_container_width=True)
+    st.plotly_chart(fig_ram_area, use_container_width=True)
 
 # --- FOOTER ---
 st.markdown("---")
