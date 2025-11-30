@@ -310,4 +310,31 @@ with st.expander("🛠️ VIEW ARCHITECTURE BLUEPRINT"):
     2.  **Embedded SQLite3:** Uses a single-file denormalized structure (Table `mtc`) for blazing fast reads.
     3.  **C-Language Core:** `pthread` and native sockets minimize overhead compared to Python/Java VMs.
     """)
-    st.image("Architecture.jpg", caption="TinyOneM2M Internal Architecture")
+    # REPLACED STATIC IMAGE WITH CODE-GENERATED DIAGRAM TO FIX ERROR
+    st.graphviz_chart("""
+    digraph G {
+        bgcolor="transparent";
+        rankdir=LR;
+        node [shape=box, style="filled,rounded", fontname="Roboto Mono", fontcolor="white", color="#00f2ff", fillcolor="#0f172a"];
+        edge [color="#00f2ff", penwidth=2, fontcolor="#8899a6"];
+
+        Client [label="💻 Client\n(App/Sensor)", shape=note];
+        Cloud [label="☁️ Internet", style=dashed, color="#444", fontcolor="#888"];
+        
+        subgraph cluster_server {
+            label = "TinyOneM2M Gateway";
+            style = rounded;
+            color = "#ff0055";
+            fontcolor = "#ff0055";
+            bgcolor = "rgba(255,0,85,0.05)";
+            
+            Core [label="⚙️ TinyCore\n(C + Pthreads)", shape=component];
+            DB [label="💾 SQLite3\n(Embedded)", shape=cylinder, fillcolor="#222"];
+            
+            Core -> DB [label="SQL (Denormalized)", dir=both];
+        }
+
+        Client -> Cloud [dir=both];
+        Cloud -> Core [dir=both, label="HTTP/REST"];
+    }
+    """)
