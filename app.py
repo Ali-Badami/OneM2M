@@ -2,339 +2,355 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 import time
+import random
 
-# --- PAGE CONFIG ---
+# --- PAGE CONFIGURATION (The Canvas) ---
 st.set_page_config(
-    page_title="TinyOneM2M: Mission Critical",
-    page_icon="🚀",
+    page_title="TinyOneM2M: Edge Ops",
+    page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# --- CUSTOM CSS (CYBERPUNK / SCI-FI THEME) ---
+# --- CUSTOM "CYBER-HUD" CSS ---
 st.markdown("""
 <style>
-    /* Global Font & Background */
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
-    
+    /* Dark Theme Base */
     .stApp {
-        background-color: #050510;
-        color: #00f2ff;
-        font-family: 'Roboto Mono', monospace;
+        background-color: #0e1117;
+        color: #c9d1d9;
     }
     
+    /* Neon Glow Headers */
     h1, h2, h3 {
-        font-family: 'Orbitron', sans-serif !important;
-        color: #fff !important;
-        text-shadow: 0 0 10px #00f2ff;
+        font-family: 'Courier New', monospace;
+        text-transform: uppercase;
+        letter-spacing: 2px;
     }
     
-    /* Metrics Styling */
-    div[data-testid="stMetricValue"] {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 2rem !important;
-        color: #ff0055;
-        text-shadow: 0 0 5px #ff0055;
-    }
-    
-    div[data-testid="stMetricLabel"] {
-        color: #8899a6;
+    h1 {
+        background: -webkit-linear-gradient(45deg, #00d2ff, #3a7bd5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 900;
+        text-shadow: 0px 0px 20px rgba(0, 210, 255, 0.3);
     }
 
-    /* Custom Borders */
-    .status-box {
-        border: 1px solid #333;
-        border-radius: 5px;
+    /* Metric Cards - HUD Style */
+    div[data-testid="metric-container"] {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 15px;
-        background: rgba(255, 255, 255, 0.05);
-        margin-bottom: 20px;
+        border-radius: 5px;
+        border-left: 5px solid #333;
+        transition: all 0.3s ease;
     }
     
-    .success-box {
-        border: 1px solid #00ff41;
-        box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+    /* Dynamic Border Colors for Metrics */
+    div[data-testid="metric-container"]:hover {
+        border-left: 5px solid #00d2ff;
+        box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
     }
-    
-    .danger-box {
-        border: 1px solid #ff0055;
-        box-shadow: 0 0 15px rgba(255, 0, 85, 0.2);
-    }
-    
-    /* Buttons */
+
+    /* Custom Buttons */
     .stButton>button {
-        font-family: 'Orbitron', sans-serif;
-        border: 1px solid #00f2ff;
-        background-color: transparent;
-        color: #00f2ff;
-        border-radius: 0;
-        transition: all 0.3s;
+        width: 100%;
+        border-radius: 0px;
+        border: 1px solid #00d2ff;
+        color: #00d2ff;
+        background: transparent;
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        transition: 0.2s;
     }
     .stButton>button:hover {
-        background-color: #00f2ff;
-        color: black;
-        box-shadow: 0 0 20px #00f2ff;
+        background: #00d2ff;
+        color: #000;
+        box-shadow: 0 0 15px #00d2ff;
+    }
+
+    /* Console Log Styling */
+    .console-log {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        background-color: #000;
+        color: #00ff00;
+        padding: 10px;
+        border: 1px solid #333;
+        height: 150px;
+        overflow-y: scroll;
+        border-radius: 3px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- APP STATE & LOGIC ---
-if 'simulation_running' not in st.session_state:
-    st.session_state.simulation_running = False
+# --- SESSION STATE INITIALIZATION ---
+if 'log_history' not in st.session_state:
+    st.session_state.log_history = ["> SYSTEM INITIALIZED...", "> WAITING FOR INPUT..."]
+if 'system_status' not in st.session_state:
+    st.session_state.system_status = "IDLE"
 
-# --- HEADER ---
-col_logo, col_title = st.columns([1, 4])
-with col_logo:
-    st.markdown("<h1>📡</h1>", unsafe_allow_html=True)
-with col_title:
-    st.title("TINY-ONEM2M: MISSION CRITICAL")
-    st.caption("DEPLOYMENT TARGET: RASPBERRY PI ZERO W (512MB RAM)")
+# --- HELPER FUNCTIONS ---
+def add_log(message):
+    st.session_state.log_history.append(f"> {time.strftime('%H:%M:%S')} | {message}")
+    if len(st.session_state.log_history) > 8:
+        st.session_state.log_history.pop(0)
 
-st.markdown("---")
-
-# --- CONTROL PANEL (GAMIFIED) ---
-c1, c2, c3 = st.columns([1, 1, 1])
-
-with c1:
-    st.markdown("### 1. SELECT KERNEL")
-    runtime = st.radio(
-        "Runtime Environment",
-        ["Standard (Java/Python)", "TinyOneM2M (C-Based)"],
+# --- SIDEBAR: MISSION CONFIGURATION ---
+with st.sidebar:
+    st.title("⚙️ OPS CONFIG")
+    st.markdown("---")
+    
+    st.subheader("1. HARDWARE TARGET")
+    hw_profile = st.selectbox(
+        "Device Profile",
+        ["Raspberry Pi Zero W (512MB)", "Generic Gateway (4GB)", "Cloud Instance (16GB)"],
         index=0,
-        help="Standard runtimes have high overhead (JVM/Interpreter). TinyOneM2M uses native C."
+        help="Section V-E: Minimal Hardware Compatibility Testing"
     )
-
-with c2:
-    st.markdown("### 2. DB STRATEGY")
-    db_mode = st.radio(
-        "Database Architecture",
-        ["Normalized (Complex Joins)", "Denormalized (Single Table)"],
-        index=0,
-        help="Normalized DBs save space but slow down deep queries. Denormalized DBs are optimized for speed."
+    
+    st.subheader("2. ARCHITECTURE")
+    db_strategy = st.radio(
+        "Database Strategy",
+        ["Normalized (Standard)", "Denormalized (TinyOneM2M)"],
+        index=1,
+        help="Section V-A: Denormalization reduces Deep Query time from 3300us to 4.5us."
     )
-
-with c3:
-    st.markdown("### 3. LOAD INJECTOR")
-    device_load = st.select_slider(
-        "Connected Devices",
-        options=[1000, 10000, 50000, 100000],
-        value=1000
+    
+    runtime_type = st.radio(
+        "Runtime Core",
+        ["Python/Java (OpenMTC)", "C-Native (TinyOneM2M)"],
+        index=1,
+        help="Section IV: C uses pthreads and native sockets for low overhead."
     )
+    
+    st.markdown("---")
+    st.info("💡 **TIP:** Toggle the **Database Strategy** during simulation to see the latency collapse instantly.")
 
-# --- SIMULATION ENGINE ---
-# Parameters derived from Paper Tables VI, VIII, IX
-BASE_RAM = 512 # MB (Pi Zero Limit)
+# --- MAIN DASHBOARD ---
 
-if runtime == "TinyOneM2M (C-Based)":
-    ram_usage_per_k = 0.14  # ~140MB for 100k
-    base_overhead = 5       # 5MB base
-    latency_factor = 1.0    # 1ms base
+# Header
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.title("TINY-ONEM2M // EDGE COMMANDER")
+    st.markdown("**IMPLEMENTATION OF IEEE DSIT 2024 STANDARD (v5.1)**")
+with col2:
+    st.markdown(f"<div style='text-align:right; font-family:monospace; color:#00d2ff;'>STATUS: {st.session_state.system_status}<br>TARGET: {hw_profile.split('(')[0]}</div>", unsafe_allow_html=True)
+
+# --- LIVE SIMULATION ENGINE ---
+# We use a placeholder container to update metrics dynamically
+placeholder = st.empty()
+run_sim = st.checkbox("🟢 ACTIVATE NETWORK SIMULATION", value=False)
+
+if run_sim:
+    st.session_state.system_status = "ONLINE"
+    
+    # Simulation Loop
+    for i in range(100):
+        # 1. CALCULATE METRICS BASED ON PAPER DATA
+        
+        # Load Factor (Randomized slightly)
+        load_factor = np.random.normal(1.0, 0.1)
+        
+        # A. Latency Calculation (Section V-C & V-A)
+        # Normalized DB is EXPONENTIALLY slower on deep queries
+        if db_strategy == "Normalized (Standard)":
+            base_latency = 3300.0 * load_factor # microseconds (Table VI)
+            latency_color = "inverse" # Red
+        else:
+            base_latency = 4.5 * load_factor # microseconds (Table VI)
+            latency_color = "normal" # Green
+            
+        # Add Runtime Overhead (Java/Python vs C)
+        # Table VIII: OpenMTC max latency 15ms vs TinyOneM2M 1.1ms
+        if runtime_type == "Python/Java (OpenMTC)":
+            runtime_overhead = np.random.randint(5000, 15000) # us
+            mem_usage_base = 60 # MB
+        else:
+            runtime_overhead = np.random.randint(100, 1200) # us
+            mem_usage_base = 5 # MB
+            
+        total_latency_ms = (base_latency + runtime_overhead) / 1000.0
+        
+        # B. RAM Calculation (Section V-E Table IX)
+        # 100k resources = ~14MB RAM for TinyOneM2M
+        resource_count = 10000 + (i * 1000)
+        if runtime_type == "C-Native (TinyOneM2M)":
+            ram_usage = mem_usage_base + (resource_count * 0.00014) # Approx slope from Table IX
+        else:
+            ram_usage = mem_usage_base + (resource_count * 0.0008) # Higher slope for managed languages
+            
+        # C. Crash Logic for Pi Zero (512MB Limit)
+        is_crashed = False
+        if "Zero" in hw_profile and ram_usage > 450:
+            is_crashed = True
+            st.session_state.system_status = "CRITICAL MEMORY"
+        
+        # 2. RENDER UI
+        with placeholder.container():
+            # A. Key Metrics Row
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Active Resources", f"{resource_count:,}", delta="+1000/s")
+            m2.metric("Query Latency", f"{total_latency_ms:.2f} ms", delta=f"{'HIGH' if total_latency_ms > 10 else 'OPTIMAL'}", delta_color=latency_color)
+            m3.metric("RAM Usage", f"{ram_usage:.1f} MB", delta=f"{ram_usage/512*100:.1f}% Capacity", delta_color="inverse" if ram_usage > 400 else "normal")
+            m4.metric("Thread Pool", "Active", delta="Native Pthreads" if "C-Native" in runtime_type else "JVM Threads")
+
+            # B. Visualizers
+            c_chart, c_log = st.columns([2, 1])
+            
+            with c_chart:
+                # Latency Strip Chart
+                chart_data = pd.DataFrame({
+                    'Time': range(i), 
+                    'Latency (ms)': [total_latency_ms + np.random.uniform(-0.5, 0.5) for _ in range(i)]
+                })
+                st.line_chart(chart_data, y='Latency (ms)', height=200)
+                
+                # Critical Warning
+                if is_crashed:
+                    st.error("⚠️ SYSTEM FAILURE: OUT OF MEMORY (OOM KILLER TRIGGERED)")
+                    st.markdown("Standard Runtimes cannot sustain >100k resources on Pi Zero. Switch to **TinyOneM2M**.")
+                    break
+                
+                if total_latency_ms > 10:
+                    st.warning("⚠️ HIGH LATENCY DETECTED: Switch DB Strategy to **Denormalized** to optimize SELECT queries.")
+
+            with c_log:
+                # Simulated Console Output based on Architecture
+                action = random.choice(["INSERT CIN", "RETRIEVE AE", "DISCOVERY", "NOTIFY SUB"])
+                add_log(f"{action} >> {runtime_type.split()[0]} >> DB: {db_strategy.split()[0]} >> {total_latency_ms:.2f}ms")
+                
+                log_html = "<div class='console-log'>" + "<br>".join(st.session_state.log_history) + "</div>"
+                st.markdown(log_html, unsafe_allow_html=True)
+        
+        time.sleep(0.1) # Refresh rate
+        
 else:
-    ram_usage_per_k = 0.8   # ~800MB for 100k (Crash zone)
-    base_overhead = 60      # 60MB JVM overhead
-    latency_factor = 15.0   # 15ms base (Garbage collection spikes)
+    # --- STATIC VIEW (When Sim is Off) ---
+    with placeholder.container():
+        st.info("👆 ACTIVATE SIMULATION TO START STRESS TESTING")
+        
+        # Show Architecture Diagram when Idle
+        st.markdown("### 🏗️ SYSTEM ARCHITECTURE BLUEPRINT")
+        st.caption("Visualizing the C-Based Threading Model (Section III-B)")
+        
+        st.graphviz_chart('''
+            digraph {
+                rankdir=LR;
+                bgcolor="#0e1117";
+                node [style=filled, fillcolor="#1f2937", fontcolor="white", fontname="Courier New", shape=box, color="#374151"];
+                edge [color="#00d2ff", penwidth=1.5];
 
-if db_mode == "Denormalized (Single Table)":
-    query_speed = 4.5       # microseconds (Fast)
-else:
-    query_speed = 3300.0    # microseconds (Slow - Deep Joins)
-
-# Calculate Current State
-current_ram = base_overhead + (device_load / 1000 * ram_usage_per_k)
-ram_percent = (current_ram / BASE_RAM) * 100
-current_latency = latency_factor * (1 + (device_load/100000))
-current_db_time = query_speed
-
-# --- MAIN VISUALIZATION AREA ---
-
-# 1. STATUS INDICATORS (GAUGES)
-st.markdown("### 📊 SYSTEM TELEMETRY")
-g1, g2, g3 = st.columns(3)
-
-with g1:
-    # RAM GAUGE
-    fig_ram = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = current_ram,
-        title = {'text': "RAM USAGE (MB)"},
-        gauge = {
-            'axis': {'range': [0, 512]},
-            'bar': {'color': "#00f2ff" if current_ram < 400 else "#ff0055"},
-            'steps': [
-                {'range': [0, 400], 'color': "rgba(0, 242, 255, 0.1)"},
-                {'range': [400, 512], 'color': "rgba(255, 0, 85, 0.3)"}
-            ],
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': 480
+                Client [label="IoT Device\n(HTTP/CoAP)", shape=ellipse, fillcolor="#00d2ff", fontcolor="black"];
+                
+                subgraph cluster_tiny {
+                    label = "TinyOneM2M Core (C)";
+                    style = dashed;
+                    color = "#4b5563";
+                    fontcolor = "#9ca3af";
+                    
+                    Router [label="1. Socket Listener\n(Native)", color="#10b981"];
+                    Worker [label="2. Thread Pool\n(pthread)", color="#f59e0b"];
+                    Logic [label="3. Protocol Wrapper\n(OneM2M v5.1)"];
+                    
+                    subgraph cluster_db {
+                        label = "Persistence";
+                        bgcolor = "#111827";
+                        DB [label="SQLite3\n(Denormalized)", shape=cylinder, fillcolor="#ec4899"];
+                    }
+                }
+                
+                Client -> Router [label="REST"];
+                Router -> Worker [label="Spawn"];
+                Worker -> Logic [label="Process"];
+                Logic -> DB [label="Fast I/O"];
             }
-        }
-    ))
-    fig_ram.update_layout(height=250, margin=dict(l=20, r=20, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
-    st.plotly_chart(fig_ram, use_container_width=True)
+        ''')
 
-with g2:
-    # LATENCY GAUGE
-    fig_lat = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = current_latency,
-        title = {'text': "API LATENCY (ms)"},
-        gauge = {
-            'axis': {'range': [0, 20]},
-            'bar': {'color': "#00ff41" if current_latency < 5 else "#ffa500"},
-            'steps': [
-                {'range': [0, 5], 'color': "rgba(0, 255, 65, 0.1)"},
-                {'range': [5, 20], 'color': "rgba(255, 165, 0, 0.2)"}
-            ]
-        }
-    ))
-    fig_lat.update_layout(height=250, margin=dict(l=20, r=20, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+# --- DATA DEEP DIVES ---
+st.markdown("---")
+st.header("📊 RESEARCH DATA VAULT")
+
+tab1, tab2, tab3 = st.tabs(["DB PERFORMANCE (Table VI)", "LATENCY BENCHMARK (Table VIII)", "RESOURCE SCALING (Table IX)"])
+
+with tab1:
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        st.markdown("""
+        **The Problem:** In a standard normalized DB (many tables), retrieving a deep child resource (e.g., `/CSE/AE/CNT/CIN`) requires multiple expensive `JOIN` operations.
+        
+        **The TinyOneM2M Solution:** We use a **Denormalized** single-table structure.
+        
+        **Result:** `SELECT` operation time drops from **3300 μs** to **4.5 μs**.
+        """)
+    with col_t2:
+        # Visualizing Table VI
+        ops = ['Insert', 'Select (Deep)', 'Update', 'Delete']
+        norm_times = [7.0, 3300.0, 7.0, 3.8]
+        denorm_times = [6.96, 4.5, 6.9, 3.6]
+        
+        fig_db = go.Figure(data=[
+            go.Bar(name='Normalized', x=ops, y=norm_times, marker_color='#ef4444'),
+            go.Bar(name='Denormalized (Tiny)', x=ops, y=denorm_times, marker_color='#00d2ff')
+        ])
+        fig_db.update_layout(
+            title="Execution Time (Log Scale) - Lower is Better",
+            yaxis_type="log",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font_color="white"
+        )
+        st.plotly_chart(fig_db, use_container_width=True)
+
+with tab2:
+    st.markdown("""
+    Comparing **TinyOneM2M (C)** vs **OpenMTC (Python)**. 
+    Notice the **Max Latency** spikes in OpenMTC (up to 15ms) caused by Garbage Collection and VM overhead, whereas TinyOneM2M remains stable near 1ms.
+    """)
+    # Data from Table VIII
+    ops_lat = ['POST', 'GET', 'PUT', 'DELETE']
+    tiny_max = [1.14, 0.11, 0.59, 0.54]
+    open_max = [15.60, 1.07, 0.14, 0.05]
+    
+    fig_lat = go.Figure()
+    fig_lat.add_trace(go.Scatter(x=ops_lat, y=tiny_max, name='TinyOneM2M Max', line=dict(color='#00d2ff', width=4)))
+    fig_lat.add_trace(go.Scatter(x=ops_lat, y=open_max, name='OpenMTC Max', line=dict(color='#ef4444', width=4, dash='dot')))
+    
+    fig_lat.update_layout(
+        title="Maximum Latency Stability (ms)",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color="white"
+    )
     st.plotly_chart(fig_lat, use_container_width=True)
 
-with g3:
-    # DB SPEED GAUGE (Log Scale Simulation)
-    fig_db = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = np.log10(current_db_time),
-        title = {'text': "DB QUERY COST (Log10 µs)"},
-        number = {'suffix': " µs", 'font': {'size': 20}}, 
-        # Hack to show actual value in overlay or subtitle
-        gauge = {
-            'axis': {'range': [0, 4]}, # 10^0 to 10^4
-            'bar': {'color': "#8a2be2"},
-            'steps': [
-                {'range': [0, 1], 'color': "rgba(0, 255, 65, 0.1)"}, # 1-10us
-                {'range': [3, 4], 'color': "rgba(255, 0, 85, 0.3)"}  # 1000-10000us
-            ]
-        }
-    ))
-    # Override number to show actual value not log
-    fig_db.update_traces(gauge_axis_tickvals=[0, 1, 2, 3, 4], gauge_axis_ticktext=["1", "10", "100", "1k", "10k"])
-    fig_db.update_layout(height=250, margin=dict(l=20, r=20, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
-    st.plotly_chart(fig_db, use_container_width=True)
-
-
-# --- SYSTEM DIAGNOSTICS (THE "FUN" PART) ---
-st.markdown("### 🖥️ SYSTEM DIAGNOSTICS")
-
-# Check for Crash
-if current_ram > 480:
+with tab3:
     st.markdown("""
-    <div class="status-box danger-box">
-        <h2 style="color:#ff0055!important; margin:0;">⚠️ CRITICAL FAILURE DETECTED ⚠️</h2>
-        <p><strong>ERROR_OOM_KILLER:</strong> The Operating System has terminated your process.</p>
-        <p><strong>Reason:</strong> High overhead from Standard Runtime (Java/Python) consumed all available RAM on the Raspberry Pi Zero.</p>
-        <p><strong>Fix:</strong> Switch Kernel to <strong>TinyOneM2M (C-Based)</strong> to reduce memory footprint.</p>
-    </div>
-    """, unsafe_allow_html=True)
-elif current_db_time > 1000:
-    st.markdown("""
-    <div class="status-box danger-box" style="border-color: orange; box-shadow: 0 0 15px rgba(255, 165, 0, 0.2);">
-        <h2 style="color:orange!important; margin:0;">⚠️ LATENCY BOTTLENECK</h2>
-        <p><strong>WARN_SLOW_QUERY:</strong> Database queries are taking >3ms.</p>
-        <p><strong>Reason:</strong> Normalized database requires expensive JOIN operations for deep resource trees.</p>
-        <p><strong>Fix:</strong> Switch DB Strategy to <strong>Denormalized</strong> for O(1) read access.</p>
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div class="status-box success-box">
-        <h2 style="color:#00ff41!important; margin:0;">✅ SYSTEM OPTIMAL</h2>
-        <p><strong>STATUS:</strong> Hardware resources are within safe limits.</p>
-        <p><strong>RAM Headroom:</strong> Available.</p>
-        <p><strong>Latency:</strong> Real-time.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# --- NETWORK VISUALIZER ---
-st.markdown("### 🌐 LIVE NETWORK TOPOLOGY")
-
-# Create a synthetic network based on load
-# To make it performant, we limit visual nodes but show the scale
-node_count = min(device_load, 100) # visual cap
-x = np.random.rand(node_count)
-y = np.random.rand(node_count)
-sizes = np.random.randint(5, 15, node_count)
-
-# Gateway Node
-x = np.append(x, 0.5)
-y = np.append(y, 0.5)
-sizes = np.append(sizes, 30)
-colors = ['#00f2ff'] * node_count + ['#ffffff'] # Blue nodes, White gateway
-
-fig_net = go.Figure()
-
-# Add Nodes
-fig_net.add_trace(go.Scatter(
-    x=x, y=y,
-    mode='markers',
-    marker=dict(size=sizes, color=colors, line=dict(width=1, color='DarkSlateGrey'))
-))
-
-# Add "Data Packet" lines (visual effect)
-if current_ram <= 480:
-    # Only draw lines if system isn't crashed
-    lines_x = []
-    lines_y = []
-    for i in range(node_count):
-        lines_x.extend([x[i], 0.5, None])
-        lines_y.extend([y[i], 0.5, None])
-    
-    fig_net.add_trace(go.Scatter(
-        x=lines_x, y=lines_y,
-        mode='lines',
-        line=dict(color='rgba(0, 242, 255, 0.2)', width=1)
-    ))
-
-fig_net.update_layout(
-    showlegend=False,
-    height=400,
-    plot_bgcolor='rgba(0,0,0,0)',
-    paper_bgcolor='rgba(0,0,0,0)',
-    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-    margin=dict(l=0, r=0, t=0, b=0)
-)
-
-st.plotly_chart(fig_net, use_container_width=True)
-
-# --- ARCHITECTURE BREAKDOWN (EXPANDER) ---
-with st.expander("🛠️ VIEW ARCHITECTURE BLUEPRINT"):
-    st.markdown("""
-    ### The TinyOneM2M Secret Sauce
-    
-    1.  **Protocol Wrapper:** Validates OneM2M standard compliance (57% coverage of v5.1).
-    2.  **Embedded SQLite3:** Uses a single-file denormalized structure (Table `mtc`) for blazing fast reads.
-    3.  **C-Language Core:** `pthread` and native sockets minimize overhead compared to Python/Java VMs.
+    **The Pi Zero Test:** Creating 100,000 Content Instances (CIN) on a device with 512MB RAM.
+    TinyOneM2M uses only **14.7 MB** of RAM for 100k resources, leaving plenty of room for applications.
     """)
-    # REPLACED STATIC IMAGE WITH CODE-GENERATED DIAGRAM TO FIX ERROR
-    st.graphviz_chart("""
-    digraph G {
-        bgcolor="transparent";
-        rankdir=LR;
-        node [shape=box, style="filled,rounded", fontname="Roboto Mono", fontcolor="white", color="#00f2ff", fillcolor="#0f172a"];
-        edge [color="#00f2ff", penwidth=2, fontcolor="#8899a6"];
+    # Data from Table IX
+    resources = [10000, 50000, 100000]
+    ram_usage = [5.6, 9.6, 14.7] # MB
+    
+    fig_ram = px.area(
+        x=resources, y=ram_usage, 
+        labels={'x':'Resources Created', 'y':'RAM Usage (MB)'},
+        color_discrete_sequence=['#10b981']
+    )
+    fig_ram.update_layout(
+        title="RAM Usage Growth (Linear & Efficient)",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color="white"
+    )
+    st.plotly_chart(fig_ram, use_container_width=True)
 
-        Client [label="💻 Client\n(App/Sensor)", shape=note];
-        Cloud [label="☁️ Internet", style=dashed, color="#444", fontcolor="#888"];
-        
-        subgraph cluster_server {
-            label = "TinyOneM2M Gateway";
-            style = rounded;
-            color = "#ff0055";
-            fontcolor = "#ff0055";
-            bgcolor = "rgba(255,0,85,0.05)";
-            
-            Core [label="⚙️ TinyCore\n(C + Pthreads)", shape=component];
-            DB [label="💾 SQLite3\n(Embedded)", shape=cylinder, fillcolor="#222"];
-            
-            Core -> DB [label="SQL (Denormalized)", dir=both];
-        }
-
-        Client -> Cloud [dir=both];
-        Cloud -> Core [dir=both, label="HTTP/REST"];
-    }
-    """)
+# --- FOOTER ---
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #666;'>
+    <small>TINY-ONEM2M RESEARCH DEMO | IEEE DSIT 2024 | AUTHOR: SHUJAATALI BADAMI</small>
+</div>
+""", unsafe_allow_html=True)
