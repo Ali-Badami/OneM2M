@@ -171,7 +171,7 @@ st.markdown("---")
 # --- BIG ACTIVATION BUTTON (MOVED TO TOP) ---
 c_btn1, c_btn2, c_btn3 = st.columns([1, 2, 1])
 with c_btn2:
-    run_sim = st.checkbox("🟢 ACTIVATE NETWORK SIMULATION", value=False, key="sim_trigger")
+    run_sim = st.checkbox("ACTIVATE NETWORK SIMULATION", value=False, key="sim_trigger")
 
 st.markdown("---")
 
@@ -266,7 +266,7 @@ if run_sim:
 else:
     # --- STATIC VIEW (When Sim is Off) ---
     with placeholder.container():
-        st.info("👆 ACTIVATE SIMULATION TO START STRESS TESTING")
+        st.info("ACTIVATE SIMULATION TO START STRESS TESTING")
         
         # Show Architecture Diagram when Idle
         st.markdown("### 🏗️ SYSTEM ARCHITECTURE BLUEPRINT")
