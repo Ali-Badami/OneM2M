@@ -83,6 +83,33 @@ st.markdown("""
         overflow-y: scroll;
         border-radius: 3px;
     }
+    
+    /* Big Start Button Style */
+    .big-button {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    
+    /* Custom Checkbox Styling to look like a button */
+    div[data-testid="stCheckbox"] label {
+        font-size: 1.2rem !important;
+        font-weight: bold;
+        color: #00ff00 !important;
+        border: 1px solid #00ff00;
+        padding: 10px 20px;
+        border-radius: 5px;
+        background: rgba(0, 255, 0, 0.1);
+        transition: all 0.3s ease;
+        display: block;
+        text-align: center;
+        cursor: pointer;
+    }
+    
+    div[data-testid="stCheckbox"] label:hover {
+        background: rgba(0, 255, 0, 0.3);
+        box-shadow: 0 0 15px #00ff00;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -139,10 +166,18 @@ with col1:
 with col2:
     st.markdown(f"<div style='text-align:right; font-family:monospace; color:#00d2ff;'>STATUS: {st.session_state.system_status}<br>TARGET: {hw_profile.split('(')[0]}</div>", unsafe_allow_html=True)
 
+st.markdown("---")
+
+# --- BIG ACTIVATION BUTTON (MOVED TO TOP) ---
+c_btn1, c_btn2, c_btn3 = st.columns([1, 2, 1])
+with c_btn2:
+    run_sim = st.checkbox("🟢 ACTIVATE NETWORK SIMULATION", value=False, key="sim_trigger")
+
+st.markdown("---")
+
 # --- LIVE SIMULATION ENGINE ---
 # We use a placeholder container to update metrics dynamically
 placeholder = st.empty()
-run_sim = st.checkbox("🟢 ACTIVATE NETWORK SIMULATION", value=False)
 
 if run_sim:
     st.session_state.system_status = "ONLINE"
